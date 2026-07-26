@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="no" class="h-full bg-[#0b0e11]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading AI - Nyhetsskraper & Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="h-full text-gray-100 flex flex-col justify-between font-sans bg-[#0b0e11]">
+
+    <div class="max-w-6xl mx-auto w-full px-4 py-8">
+        
+        <!-- Header -->
+        <header class="mb-8 border-b border-[#212936] pb-5 flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
+                    <svg class="w-8 h-8 text-[#3b69ff]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                    Trading AI Scraper & Analysis
+                </h1>
+                <p class="text-gray-400 text-sm mt-1">Parallell nyhetsinnhenting og AI-prediksjon for aksjemarkedet</p>
+            </div>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-[#3b69ff]/10 text-[#3b69ff] border border-[#3b69ff]/20">
+                SQLite & Multithreaded
+            </span>
+        </header>
+
+        <!-- Skraperskjema Card -->
+        <div class="bg-[#12181f] rounded-2xl p-6 border border-[#212936] shadow-2xl mb-10">
+            <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-[#3b69ff]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                Konfigurer Nyhetssøk (Trådet Skraping)
+            </h2>
+
+            <form action="/scrape" method="POST" class="space-y-5">
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="url" class="block text-sm font-medium text-gray-300">
+                            Nettadresser (Separer med komma for å skrape flere samtidig)
+                        </label>
+                        <span class="text-xs text-gray-500">f.eks. finansavisen.no, e24.no</span>
+                    </div>
+                    <input type="text" id="url" name="url" 
+                           placeholder="https://www.finansavisen.no, https://e24.no" 
+                           value="{{ target_url if target_url else 'https://www.finansavisen.no/siste-nyheter' }}" 
+                           required 
+                           class="w-full bg-[#0b0e11] border border-[#212936] rounded-xl px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#3b69ff] focus:border-transparent transition">
+                </div>
+
+                <div>
+                    <label for="keywords" class="block text-sm font-medium text-gray-300 mb-2">
+                        Søkeord / Aksjetikkere (separer med komma)
+                    </label>
+                    <input type="text" id="keywords" name="keywords" 
+                           placeholder="aksje, fond, børs, equinor, dnb, rente" 
+                           value="{{ raw_keywords if raw_keywords else 'aksje, aksjer, fond, børs, equinor, dnb' }}" 
+                           class="w-full bg-[#0b0e11] border border-[#212936] rounded-xl px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#3b69ff] focus:border-transparent transition">
+                </div>
+
+                <button type="submit" 
+                        class="w-full bg-[#3b69ff] hover:bg-[#2852e6] text-white font-semibold py-3 px-6 rounded-full shadow-lg shadow-[#3b69ff]/20 transition duration-200 flex items-center justify-center gap-2 cursor-pointer">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    Kjør Parallell Skraping & Lagre
+                </button>
+            </form>
+        </div>
+
+        <!-- Resultatliste -->
+        {% if articles is not none %}
+        <div class="space-y-4">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold text-white">
+                    Skrapte Artikler <span class="text-sm font-normal text-gray-400">({{ articles|length }} treff)</span>
+                </h3>
+            </div>
+
+            {% if articles|length == 0 %}
+                <div class="bg-[#12181f] border border-[#212936] rounded-2xl p-8 text-center text-gray-400">
+                    Ingen nye artikler matchet søkekriteriene dine akkurat nå.
+                </div>
+            {% endif %}
+
+            <div class="grid gap-4">
+                {% for art in articles %}
+                <div class="bg-[#12181f] border border-[#212936] rounded-2xl p-5 hover:border-[#3b69ff]/50 transition duration-200 shadow-sm">
+                    
+                    <!-- Topp-rad: Kilde, AI Sentiment og Dato -->
+                    <div class="flex items-center justify-between gap-4 mb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="inline-block px-2.5 py-1 rounded-md text-xs font-semibold bg-[#3b69ff]/15 text-[#3b69ff] border border-[#3b69ff]/20">
+                                Nyhet
+                            </span>
+                            
+                            <!-- Dynamisk visning av AI Prediksjon -->
+                            {% if art.prediction == 'BULLISH' %}
+                                <span class="px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                    📈 Bullish
+                                </span>
+                            {% elif art.prediction == 'BEARISH' %}
+                                <span class="px-2.5 py-1 rounded-md text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20">
+                                    📉 Bearish
+                                </span>
+                            {% else %}
+                                <span class="px-2.5 py-1 rounded-md text-xs font-medium bg-gray-500/10 text-gray-400 border border-gray-500/20">
+                                    ➡️ AI Avventer Analysering
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        <span class="text-xs text-gray-400">Hentet: {{ art.scraped_at }}</span>
+                    </div>
+
+                    <!-- Tittel -->
+                    <h4 class="text-lg font-bold text-white hover:text-[#3b69ff] transition mb-2">
+                        <a href="{{ art.link }}" target="_blank">{{ art.title }}</a>
+                    </h4>
+
+                    <!-- AI-Sammendrag Boks -->
+                    <div class="bg-[#0b0e11] border border-[#212936] rounded-xl p-3 my-3">
+                        <p class="text-xs font-semibold text-[#3b69ff] uppercase tracking-wider mb-1 flex items-center gap-1">
+                            🤖 AI-Sammendrag & Grunnlag:
+                        </p>
+                        <p class="text-gray-300 text-sm leading-relaxed">
+                            {{ art.summary }}
+                        </p>
+                    </div>
+
+                    <!-- Bnn-linje -->
+                    <div class="flex items-center justify-between text-xs text-gray-400 border-t border-[#212936] pt-3">
+                        <span>Publisert: {{ art.pub_date }}</span>
+                        <a href="{{ art.link }}" target="_blank" class="text-[#3b69ff] hover:underline flex items-center gap-1 font-semibold">
+                            Les hos kilde &rarr;
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- Footer -->
+    <footer class="text-center py-6 text-xs text-gray-500 border-t border-[#212936]">
+        AI Trading Scraper System &bull; Database: <span class="font-mono text-gray-400">F:\SQlitel\articles.db</span>
+    </footer>
+
+</body>
+</html>
