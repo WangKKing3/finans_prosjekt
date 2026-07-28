@@ -81,55 +81,42 @@
             {% endif %}
 
             <div class="grid gap-4">
-                {% for art in articles %}
-                <div class="bg-[#12181f] border border-[#212936] rounded-2xl p-5 hover:border-[#3b69ff]/50 transition duration-200 shadow-sm">
-                    
-                    <!-- Topp-rad: Kilde, AI Sentiment og Dato -->
-                    <div class="flex items-center justify-between gap-4 mb-3">
-                        <div class="flex items-center gap-2">
-                            <span class="inline-block px-2.5 py-1 rounded-md text-xs font-semibold bg-[#3b69ff]/15 text-[#3b69ff] border border-[#3b69ff]/20">
-                                Nyhet
-                            </span>
+                {% for article in articles %}
+                <div class="bg-gray-800 rounded-lg p-5 border border-gray-700 shadow-md mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center space-x-2">
+                            <span class="bg-blue-900 text-blue-300 text-xs px-2.5 py-0.5 rounded font-semibold">Nyhet</span>
                             
-                            <!-- Dynamisk visning av AI Prediksjon -->
-                            {% if art.prediction == 'BULLISH' %}
-                                <span class="px-2.5 py-1 rounded-md text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                    📈 Bullish
-                                </span>
-                            {% elif art.prediction == 'BEARISH' %}
-                                <span class="px-2.5 py-1 rounded-md text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20">
-                                    📉 Bearish
-                                </span>
+                            <!-- Viser prediksjon fra Ollama -->
+                            {% if article.prediction and 'Bullish' in article.prediction %}
+                                <span class="bg-green-900 text-green-300 text-xs px-2.5 py-0.5 rounded font-semibold">📈 {{ article.prediction }}</span>
+                            {% elif article.prediction and 'Bearish' in article.prediction %}
+                                <span class="bg-red-900 text-red-300 text-xs px-2.5 py-0.5 rounded font-semibold">📉 {{ article.prediction }}</span>
+                            {% elif article.prediction %}
+                                <span class="bg-gray-700 text-gray-300 text-xs px-2.5 py-0.5 rounded font-semibold">⚖️ {{ article.prediction }}</span>
                             {% else %}
-                                <span class="px-2.5 py-1 rounded-md text-xs font-medium bg-gray-500/10 text-gray-400 border border-gray-500/20">
-                                    ➡️ AI Avventer Analysering
-                                </span>
+                                <span class="bg-gray-700 text-gray-400 text-xs px-2.5 py-0.5 rounded font-semibold">➡️ AI Avventer Analysering</span>
                             {% endif %}
                         </div>
-
-                        <span class="text-xs text-gray-400">Hentet: {{ art.scraped_at }}</span>
+                        <span class="text-xs text-gray-400">Hentet: {{ article.scraped_at }}</span>
                     </div>
 
-                    <!-- Tittel -->
-                    <h4 class="text-lg font-bold text-white hover:text-[#3b69ff] transition mb-2">
-                        <a href="{{ art.link }}" target="_blank">{{ art.title }}</a>
-                    </h4>
+                    <!-- Overskrift -->
+                    <h3 class="text-lg font-bold text-white mb-3">{{ article.title }}</h3>
 
-                    <!-- AI-Sammendrag Boks -->
-                    <div class="bg-[#0b0e11] border border-[#212936] rounded-xl p-3 my-3">
-                        <p class="text-xs font-semibold text-[#3b69ff] uppercase tracking-wider mb-1 flex items-center gap-1">
-                            🤖 AI-Sammendrag & Grunnlag:
-                        </p>
-                        <p class="text-gray-300 text-sm leading-relaxed">
-                            {{ art.summary }}
+                    <!-- AI Sammendrag -->
+                    <div class="bg-gray-900/80 rounded-md p-3 border border-gray-700/50 mb-3">
+                        <p class="text-xs font-semibold text-indigo-400 mb-1">🤖 AI-SAMMENDRAG & GRUNNLAG:</p>
+                        <p class="text-sm text-gray-300">
+                            {{ article.summary if article.summary else "Ingen sammendrag tilgjengelig." }}
                         </p>
                     </div>
 
-                    <!-- Bnn-linje -->
-                    <div class="flex items-center justify-between text-xs text-gray-400 border-t border-[#212936] pt-3">
-                        <span>Publisert: {{ art.pub_date }}</span>
-                        <a href="{{ art.link }}" target="_blank" class="text-[#3b69ff] hover:underline flex items-center gap-1 font-semibold">
-                            Les hos kilde &rarr;
+                    <!-- Kilde lenke -->
+                    <div class="flex justify-between items-center text-xs text-gray-400">
+                        <span>Publisert: {{ article.pub_date }}</span>
+                        <a href="{{ article.link }}" target="_blank" class="text-blue-400 hover:underline flex items-center gap-1">
+                            Les hos kilde →
                         </a>
                     </div>
                 </div>
@@ -139,7 +126,35 @@
         {% endif %}
 
     </div>
+        <!-- Spinner og Timer Modal / Overlay -->
+    <div id="loadingOverlay" class="hidden fixed inset-0 bg-gray-900/80 backdrop-blur-sm flex flex-col items-center justify-center z-50">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-500 mb-4"></div>
+        <h2 class="text-xl font-bold text-white mb-2">🤖 AI analyserer nyhetene...</h2>
+        <p class="text-gray-400 text-sm mb-4">Dette kan ta litt tid mens Ollama prosesserer artiklene lokalt.</p>
+        <div class="bg-gray-800 px-4 py-2 rounded-lg border border-gray-700 text-indigo-400 font-mono text-lg">
+            Tid brukt: <span id="timer">0</span>s
+        </div>
+    </div>
 
+    <script>
+        // Finn skjemaet og legg til event-listener
+        const form = document.querySelector('form');
+        const overlay = document.getElementById('loadingOverlay');
+        const timerElement = document.getElementById('timer');
+
+        if (form) {
+            form.addEventListener('submit', function() {
+                // Vis loading overlay
+                overlay.classList.remove('hidden');
+
+                let seconds = 0;
+                setInterval(() => {
+                    seconds++;
+                    timerElement.innerText = seconds;
+                }, 1000);
+            });
+        }
+    </script>
     <!-- Footer -->
     <footer class="text-center py-6 text-xs text-gray-500 border-t border-[#212936]">
         AI Trading Scraper System &bull; Database: <span class="font-mono text-gray-400">F:\SQlitel\articles.db</span>
